@@ -4,10 +4,8 @@
  * "Send code" button on the login form.
  * Always answers with the same message whether or not the Gmail is registered,
  * so it can't be used to find out who has an account.
+ * Always answers JSON (even when the server is misconfigured) so the button shows a real message.
  */
-require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/rate_limit.php';
-
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
@@ -17,6 +15,13 @@ function jsonOut(int $status, array $payload): void
     echo json_encode($payload);
     exit;
 }
+
+if (!is_file(__DIR__ . '/config/config.local.php')) {
+    jsonOut(500, ['ok' => false, 'message' => 'Login codes are not set up yet. Tell the administrator.']);
+}
+
+require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/rate_limit.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonOut(405, ['ok' => false, 'message' => 'Use the Send code button on the login page.']);
@@ -51,12 +56,18 @@ $response = [
     'cooldown' => CODE_RESEND_SECONDS,
 ];
 
-$account = findAccountByEmail($email);
-if ($account && !accountIsLocked($account)) {
-    $result = issueLoginCode($account);
-    if ($result['debug_code'] !== null) {
-        $response['debug_code'] = $result['debug_code'];   // dev mode only (APP_DEBUG + MAIL_MODE 'log')
+$account = null;
+try {
+    $account = findAccountByEmail($email);
+    if ($account && !accountIsLocked($account)) {
+        $result = issueLoginCode($account);
+        if ($result['debug_code'] !== null) {
+            $response['debug_code'] = $result['debug_code'];   // dev mode only (APP_DEBUG + MAIL_MODE 'log')
+        }
     }
+} catch (Throwable $ex) {
+    error_log('send_code: ' . $ex->getMessage());
+    jsonOut(500, ['ok' => false, 'message' => 'The server is busy. Try again in a moment.']);
 }
 
 jsonOut(200, $response);

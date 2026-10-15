@@ -16,7 +16,7 @@ function getDB(): PDO
         } catch (PDOException $e) {
             error_log('Teacher Registration DB connection failed: ' . $e->getMessage());
             http_response_code(500);
-            exit('Cannot connect to the database. Check DB_HOST, DB_NAME, DB_USER and DB_PASS in config/config.php.');
+            exit('Cannot connect to the database. Check DB_HOST, DB_NAME, DB_USER and DB_PASS in config/config.local.php.');
         }
     }
     return $pdo;

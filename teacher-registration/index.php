@@ -4,6 +4,7 @@
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/rate_limit.php';
 require_once __DIR__ . '/includes/login_log.php';
+require_once __DIR__ . '/includes/bot_guard.php';
 
 if (isLoggedIn()) {
     redirect('dashboard.php');
@@ -23,6 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!rateLimitAllow('treg_signup', 5, 3600)) {
             $errors['signup'][] = 'Too many sign-ups from this network. Try again later.';
+        } elseif (botLooksLikeBot()) {
+            $errors['signup'][] = 'Please wait a few seconds, then send the form again.';
         } else {
             $result = registerAccount($_POST);
 
@@ -238,6 +241,7 @@ body.auth-body{
             <form method="POST" action="index.php" id="signup-form" data-panel="signup" <?= $tab === 'signup' ? '' : 'hidden' ?>>
                 <?= csrfField() ?>
                 <input type="hidden" name="action" value="signup">
+                <?= botFieldHtml() ?>
 
                 <?php if ($errors['signup']): ?>
                     <div class="alert alert-error" role="alert">
@@ -291,19 +295,19 @@ body.auth-body{
                     <div class="field">
                         <label for="s-password">Password</label>
                         <div class="pw-field">
-                            <input type="password" id="s-password" name="password" required minlength="8" maxlength="72" autocomplete="new-password">
+                            <input type="password" id="s-password" name="password" required minlength="10" maxlength="72" autocomplete="new-password">
                             <button type="button" class="pw-toggle" data-toggle-pw="s-password" aria-label="Show password">Show</button>
                         </div>
                     </div>
                     <div class="field">
                         <label for="s-confirm">Confirm password</label>
                         <div class="pw-field">
-                            <input type="password" id="s-confirm" name="confirm_password" required minlength="8" maxlength="72" autocomplete="new-password">
+                            <input type="password" id="s-confirm" name="confirm_password" required minlength="10" maxlength="72" autocomplete="new-password">
                             <button type="button" class="pw-toggle" data-toggle-pw="s-confirm" aria-label="Show confirm password">Show</button>
                         </div>
                     </div>
                 </div>
-                <p class="hint">At least 8 characters, with a letter and a number.</p>
+                <p class="hint">At least 10 characters, with a letter and a number.</p>
 
                 <button type="submit" class="btn btn-primary btn-block">Create account</button>
                 <p class="switch-note">Already registered? <a href="index.php?tab=login" data-tab-link="login">Log in</a></p>

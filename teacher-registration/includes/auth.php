@@ -164,11 +164,11 @@ function registerAccount(array $in): array
     if (!isset(PROGRAMS[$program]))              $errors[] = 'Choose your program.';
     if (!isset(YEAR_LEVELS[$year]))              $errors[] = 'Choose your year level.';
 
-    if (strlen($password) < 8 || !preg_match('/[A-Za-z]/', $password) || !preg_match('/\d/', $password)) {
-        $errors[] = 'Password must be at least 8 characters and include a letter and a number.';
-    } elseif (strlen($password) > 72) {
-        $errors[] = 'Password must be 72 characters or fewer.';
-    } elseif ($password !== $confirm) {
+    require_once __DIR__ . '/password_policy.php';
+    foreach (passwordProblems($password, [$first, $last, $email]) as $m) {
+        $errors[] = $m;
+    }
+    if ($password !== $confirm) {
         $errors[] = 'The two passwords do not match.';
     }
 
@@ -288,6 +288,7 @@ function attemptLogin(string $email, string $code, string $password): array
     session_regenerate_id(true);
     unset($_SESSION['csrf']);                      // fresh CSRF token for the new, logged-in session
     $_SESSION['account_id']    = (int)$account['id'];
+    $_SESSION['treg_epoch']    = (int)($account['session_epoch'] ?? 0);
     $_SESSION['last_activity'] = time();
     return ['success' => true, 'message' => ''];
 }
@@ -315,6 +316,9 @@ function currentAccount(): ?array
     $row = $stmt->fetch() ?: null;
     if (!$row) {
         unset($_SESSION['account_id']);
+    } elseif ((int)($row['session_epoch'] ?? 0) !== (int)($_SESSION['treg_epoch'] ?? 0)) {
+        unset($_SESSION['account_id'], $_SESSION['treg_epoch']);
+        $row = null;
     }
     return $cache = $row;
 }
